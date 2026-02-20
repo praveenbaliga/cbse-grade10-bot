@@ -2,17 +2,20 @@ name: Sync to HF Space
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # Manual trigger button
+  workflow_dispatch:
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history, fixes shallow error
+    
     - name: Push to HF Space
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
         git config --global user.name PraveenBaliga
-        git config --global user.email "your-email@example.com"
-        git remote add hf https://huggingface.co/spaces/PraveenBaliga/ai-tutor
-        git push -f https://PraveenBaliga:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/PraveenBaliga/ai-tutor main
+        git config --global user.email "praveen@example.com"
+        git remote add hf https://PraveenBaliga:${HF_TOKEN}@huggingface.co/spaces/PraveenBaliga/ai-tutor
+        git push -f hf main
