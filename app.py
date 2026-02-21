@@ -1,145 +1,241 @@
 import streamlit as st
 from openai import OpenAI
+import random
 
-# =============================
+# ==============================
 # PAGE CONFIG
-# =============================
+# ==============================
 st.set_page_config(
-    page_title="CBSE Grade 10 AI Tutor",
-    page_icon="📚",
-    layout="wide"
+    page_title="Super Study Quest",
+    page_icon="🚀",
+    layout="centered"
 )
-
-# =============================
-# OPENAI CLIENT
-# =============================
-if "OPENAI_API_KEY" not in st.secrets:
-    st.error("OpenAI API Key not found. Please add OPENAI_API_KEY in HuggingFace Secrets.")
-    st.stop()
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
+# ==============================
+# SESSION STATE INIT
+# ==============================
+if "xp" not in st.session_state:
+    st.session_state.xp = 0
 
-# =============================
-# PROMPT BUILDER
-# =============================
-def build_prompt(subject, chapter, mode):
+if "streak" not in st.session_state:
+    st.session_state.streak = 1
 
-    system_prompt = """
-You are a strict CBSE Grade 10 academic expert aligned with NCERT syllabus.
-Follow CBSE 2026 pattern.
-Ensure minimum 40% competency-based questions.
-Use clear headings.
-Give accurate answers only.
-Avoid unnecessary explanations.
-"""
+if "subject" not in st.session_state:
+    st.session_state.subject = None
 
-    user_prompt = f"""
-Subject: {subject}
-Chapter: {chapter}
-Mode: {mode}
+# ==============================
+# BRIGHT GAMIFIED UI
+# ==============================
+st.markdown("""
+<style>
+.main {
+    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+}
 
-Generate structured academic content accordingly.
-"""
+.title {
+    text-align:center;
+    font-size:34px;
+    font-weight:800;
+    color:#1e3a8a;
+}
 
-    return system_prompt, user_prompt
+.subtitle {
+    text-align:center;
+    font-size:18px;
+    color:#374151;
+    margin-bottom:20px;
+}
 
+.card {
+    background-color:white;
+    padding:20px;
+    border-radius:20px;
+    box-shadow:0px 8px 18px rgba(0,0,0,0.1);
+    margin-bottom:20px;
+}
 
-# =============================
-# GENERATE CONTENT
-# =============================
-def generate_content(subject, chapter, mode):
+.stButton>button {
+    background: linear-gradient(45deg, #ff6a00, #ee0979);
+    color: white;
+    border-radius: 14px;
+    height: 3.2em;
+    font-size: 18px;
+    border: none;
+    width: 100%;
+    margin-top: 8px;
+}
+</style>
+""", unsafe_allow_html=True)
 
-    system_prompt, user_prompt = build_prompt(subject, chapter, mode)
+# ==============================
+# HEADER
+# ==============================
+student_name = "Champion"  # change to her name
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=0.5,
-        max_tokens=1000
+st.markdown(f"<div class='title'>🚀 Hi {student_name}!</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>Ready to level up your brain today? 🎯</div>", unsafe_allow_html=True)
+
+# ==============================
+# XP + STREAK DISPLAY
+# ==============================
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown(f"### ⭐ XP: {st.session_state.xp}")
+
+with col2:
+    st.markdown(f"### 🔥 Streak: {st.session_state.streak} days")
+
+st.markdown("---")
+
+# ==============================
+# DAILY CHALLENGE
+# ==============================
+st.markdown("## 🎯 Daily Challenge")
+
+if st.button("Start Today’s Challenge"):
+
+    st.session_state.xp += 10
+    st.session_state.streak += 1
+
+    st.success("🎉 +10 XP Earned!")
+    st.balloons()
+
+# ==============================
+# SUBJECT SELECTION
+# ==============================
+st.markdown("## 📚 Choose Your Mission")
+
+if st.button("📐 Mathematics"):
+    st.session_state.subject = "Mathematics"
+
+if st.button("🧪 Science"):
+    st.session_state.subject = "Science"
+
+if st.button("🌍 Social Science"):
+    st.session_state.subject = "Social Science"
+
+# ==============================
+# SYLLABUS
+# ==============================
+CBSE_SYLLABUS = {
+    "Mathematics": [
+        "Real Numbers",
+        "Quadratic Equations",
+        "Trigonometry",
+        "Statistics",
+        "Probability"
+    ],
+    "Science": [
+        "Chemical Reactions",
+        "Life Processes",
+        "Electricity",
+        "Light"
+    ],
+    "Social Science": [
+        "Nationalism in India",
+        "Federalism",
+        "Democracy"
+    ]
+}
+
+# ==============================
+# LESSON GENERATION
+# ==============================
+if st.session_state.subject:
+
+    st.markdown(f"## 📖 {st.session_state.subject}")
+
+    chapter = st.selectbox(
+        "Choose Chapter",
+        CBSE_SYLLABUS[st.session_state.subject]
     )
 
-    return response.choices[0].message.content
+    mode = st.radio(
+        "Choose Mode",
+        ["Quick Summary", "Important Questions", "Practice Challenge"]
+    )
 
+    if st.button("🚀 Start Mission"):
 
-# =============================
-# SIDEBAR
-# =============================
-with st.sidebar:
-    st.title("🎯 Select Options")
+        with st.spinner("Powering up your lesson... ⚡"):
 
-    subject = st.selectbox("Subject", [
-        "Mathematics",
-        "Science",
-        "Social Science",
-        "English",
-        "Hindi",
-        "AI",
-        "IT"
-    ])
+            prompt = f"""
+            You are an energetic CBSE Grade 10 teacher.
+            Subject: {st.session_state.subject}
+            Chapter: {chapter}
+            Mode: {mode}
 
-    chapter = st.selectbox("Chapter", [
-        "Chapter 1",
-        "Chapter 2",
-        "Chapter 3"
-    ])
+            Make it bright, engaging, simple and structured.
+            Add examples and small quiz questions.
+            """
 
-    mode = st.selectbox("Mode", [
-        "Chapter Summary",
-        "Mock Test 40 Marks",
-        "Important Board Questions",
-        "MCQs with Answers",
-        "Case Study Questions"
-    ])
-
-    generate_btn = st.button("🚀 Generate Content", use_container_width=True)
-
-
-# =============================
-# MAIN UI
-# =============================
-st.title("🧑‍🏫 CBSE Grade 10 Personal AI Tutor")
-
-if generate_btn:
-    with st.spinner("Generating CBSE-aligned content..."):
-        try:
-            result = generate_content(subject, chapter, mode)
-            st.markdown(result)
-        except Exception as e:
-            st.error(f"Error: {e}")
-
-
-# =============================
-# DOUBT CHAT SECTION
-# =============================
-st.markdown("---")
-st.subheader("💬 Ask Doubts")
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-if user_input := st.chat_input("Ask any doubt..."):
-    st.session_state.messages.append({"role": "user", "content": user_input})
-
-    with st.chat_message("assistant"):
-        try:
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=st.session_state.messages,
-                temperature=0.5,
-                max_tokens=800
+                messages=[
+                    {"role": "system", "content": "You are a fun and energetic CBSE teacher."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7
             )
 
-            reply = response.choices[0].message.content
-            st.markdown(reply)
-            st.session_state.messages.append({"role": "assistant", "content": reply})
+            output = response.choices[0].message.content
 
-        except Exception as e:
-            st.error(f"Error: {e}")
+        st.session_state.xp += 20
+
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("### 🧠 Mission Briefing")
+        st.write(output)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.success("🏆 +20 XP Earned!")
+        st.balloons()
+
+# ==============================
+# BADGE SYSTEM
+# ==============================
+st.markdown("---")
+st.markdown("## 🏅 Achievements")
+
+if st.session_state.xp >= 50:
+    st.success("🌟 Brain Booster Badge Unlocked!")
+
+if st.session_state.xp >= 100:
+    st.success("🚀 Study Star Badge Unlocked!")
+
+# ==============================
+# DOUBT SOLVER
+# ==============================
+st.markdown("---")
+st.markdown("## 💬 Ask AI Coach")
+
+question = st.text_input("Ask anything you don’t understand")
+
+if st.button("Get Help") and question:
+
+    with st.spinner("Thinking hard... 🤔"):
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a friendly CBSE Grade 10 tutor."},
+                {"role": "user", "content": question}
+            ]
+        )
+
+        answer = response.choices[0].message.content
+
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.write(answer)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ==============================
+# FOOTER
+# ==============================
+st.markdown("""
+<div style='text-align:center; padding:20px; font-size:14px;'>
+Level up daily. Small steps. Big success. 🚀
+</div>
+""", unsafe_allow_html=True)
