@@ -1,9 +1,9 @@
 import streamlit as st
 from openai import OpenAI
 
-# ==============================
+# ===============================
 # CONFIG
-# ==============================
+# ===============================
 st.set_page_config(
     page_title="CBSE Grade 10 Smart Tutor",
     page_icon="📘",
@@ -12,33 +12,29 @@ st.set_page_config(
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# ==============================
-# MODERN CLEAN UI
-# ==============================
+# ===============================
+# SESSION STATE INIT
+# ===============================
+if "page" not in st.session_state:
+    st.session_state.page = "Dashboard"
+
+if "xp" not in st.session_state:
+    st.session_state.xp = 0
+
+# ===============================
+# UI STYLING
+# ===============================
 st.markdown("""
 <style>
+.main { background-color: #f8fafc; }
 
-.main {
-    background-color: #f8fafc;
-}
-
-.header-title {
-    font-size: 38px;
-    font-weight: 700;
-    color: #111827;
-}
-
-.subtitle {
-    font-size: 18px;
-    color: #6b7280;
-    margin-bottom: 30px;
-}
+.header { font-size: 34px; font-weight: 700; color: #111827; }
 
 .card {
     background: white;
-    padding: 25px;
-    border-radius: 16px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+    padding: 20px;
+    border-radius: 14px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.05);
     margin-bottom: 20px;
 }
 
@@ -47,171 +43,159 @@ st.markdown("""
     color: white;
     border-radius: 10px;
     height: 3em;
-    font-size: 16px;
+    font-size: 15px;
     border: none;
     width: 100%;
 }
-
-.stSelectbox label {
-    font-weight: 600;
-}
-
-.metric-box {
-    background: white;
-    padding: 15px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
-
 </style>
 """, unsafe_allow_html=True)
 
-# ==============================
-# HEADER
-# ==============================
-student_name = "Student"  # change name
+# ===============================
+# SIDEBAR NAVIGATION
+# ===============================
+st.sidebar.title("Navigation")
 
-st.markdown(f"<div class='header-title'>📘 Welcome {student_name}</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>Your Personal CBSE Grade 10 Learning Dashboard</div>", unsafe_allow_html=True)
+if st.sidebar.button("🏠 Dashboard"):
+    st.session_state.page = "Dashboard"
 
-# ==============================
-# XP + STREAK (Subtle Gamification)
-# ==============================
-if "xp" not in st.session_state:
-    st.session_state.xp = 0
+if st.sidebar.button("📚 Study Mode"):
+    st.session_state.page = "Study"
 
-if "streak" not in st.session_state:
-    st.session_state.streak = 1
+if st.sidebar.button("📜 Previous Year Papers"):
+    st.session_state.page = "Papers"
 
-col1, col2 = st.columns(2)
+if st.sidebar.button("💬 Doubt Solver"):
+    st.session_state.page = "Doubt"
 
-with col1:
-    st.markdown(f"<div class='metric-box'><h3>⭐ XP</h3><h2>{st.session_state.xp}</h2></div>", unsafe_allow_html=True)
-
-with col2:
-    st.markdown(f"<div class='metric-box'><h3>🔥 Streak</h3><h2>{st.session_state.streak} days</h2></div>", unsafe_allow_html=True)
-
-st.markdown("---")
-
-# ==============================
-# SUBJECT GRID
-# ==============================
-st.markdown("## 📚 Select Subject")
-
-subjects = [
+# ===============================
+# SUBJECT DATA
+# ===============================
+SUBJECTS = [
     "Mathematics",
     "Science",
     "Social Science",
     "English",
-    "Hindi A",
-    "Hindi B",
+    "Hindi",
     "Artificial Intelligence",
     "Information Technology"
 ]
 
-cols = st.columns(4)
+YEARS = ["2024", "2023", "2022", "2021", "2020"]
 
-for i, subject in enumerate(subjects):
-    with cols[i % 4]:
-        if st.button(subject):
-            st.session_state.subject = subject
+# ===============================
+# DASHBOARD
+# ===============================
+if st.session_state.page == "Dashboard":
 
-# ==============================
-# SYLLABUS
-# ==============================
-CBSE_SYLLABUS = {
-    "Mathematics": ["Real Numbers", "Polynomials", "Quadratic Equations", "Trigonometry", "Statistics", "Probability"],
-    "Science": ["Chemical Reactions", "Life Processes", "Electricity", "Light"],
-    "Social Science": ["Nationalism in India", "Federalism", "Democracy"],
-    "English": ["Prose", "Poetry", "Writing Skills", "Grammar"],
-    "Hindi A": ["गद्य", "पद्य", "व्याकरण", "लेखन कौशल"],
-    "Hindi B": ["गद्य", "पद्य", "व्याकरण", "लेखन"],
-    "Artificial Intelligence": ["Introduction to AI", "AI Project Cycle", "Data Literacy", "Python Basics"],
-    "Information Technology": ["Digital Documentation", "Electronic Spreadsheet", "Database Management"]
-}
+    st.markdown("<div class='header'>📘 CBSE Grade 10 Smart Tutor</div>", unsafe_allow_html=True)
+    st.markdown("### ⭐ XP:", st.session_state.xp)
 
-# ==============================
-# CHAPTER + MODE
-# ==============================
-if "subject" in st.session_state:
+    st.markdown("---")
+    st.markdown("## Select Subject")
 
-    st.markdown(f"## 📖 {st.session_state.subject}")
+    cols = st.columns(4)
 
-    chapter = st.selectbox(
-        "Choose Chapter",
-        CBSE_SYLLABUS[st.session_state.subject]
-    )
+    for i, subject in enumerate(SUBJECTS):
+        with cols[i % 4]:
+            if st.button(subject):
+                st.session_state.selected_subject = subject
+                st.session_state.page = "Study"
 
-    mode = st.radio(
-        "Select Mode",
-        ["Chapter Summary", "Important Questions", "Practice Test"]
-    )
+# ===============================
+# STUDY MODE
+# ===============================
+elif st.session_state.page == "Study":
 
-    if st.button("Generate Lesson"):
+    st.markdown("## 📚 Study Mode")
 
-        with st.spinner("Preparing lesson..."):
+    subject = st.selectbox("Subject", SUBJECTS)
+    chapter = st.text_input("Enter Chapter Name")
+    mode = st.radio("Mode", ["Summary", "Important Questions", "Practice Test"])
 
-            prompt = f"""
-            You are an expert CBSE Grade 10 teacher.
-            Subject: {st.session_state.subject}
-            Chapter: {chapter}
-            Mode: {mode}
+    if st.button("Generate Content"):
 
-            Follow CBSE 2026 pattern.
-            Provide structured content with headings.
-            Include examples and exam-oriented questions.
-            """
+        prompt = f"""
+        You are a strict CBSE Grade 10 teacher.
+        Follow NCERT syllabus.
+        Subject: {subject}
+        Chapter: {chapter}
+        Mode: {mode}
 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are a professional CBSE teacher."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.6
-            )
-
-            output = response.choices[0].message.content
-
-        st.session_state.xp += 20
-
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("### Lesson Output")
-        st.write(output)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# ==============================
-# DOUBT SOLVER
-# ==============================
-st.markdown("---")
-st.markdown("## 💬 Ask a Doubt")
-
-question = st.text_input("Type your question")
-
-if st.button("Get Answer") and question:
-
-    with st.spinner("Thinking..."):
+        Use structured headings.
+        Show formulas if applicable.
+        Follow CBSE 2026 exam pattern.
+        """
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a CBSE Grade 10 teacher."},
-                {"role": "user", "content": question}
-            ]
+                {"role": "system", "content": "You are an expert CBSE teacher."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2
         )
 
-        answer = response.choices[0].message.content
+        st.session_state.xp += 20
 
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.write(answer)
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.write(response.choices[0].message.content)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# ==============================
-# FOOTER
-# ==============================
-st.markdown("""
-<div style='text-align:center; padding:20px; color:#9ca3af; font-size:14px;'>
-CBSE 2026 Pattern | Clean Learning Experience
-</div>
-""", unsafe_allow_html=True)
+# ===============================
+# PREVIOUS YEAR PAPERS
+# ===============================
+elif st.session_state.page == "Papers":
+
+    st.markdown("## 📜 Previous Year Papers")
+
+    subject = st.selectbox("Subject", SUBJECTS)
+    year = st.selectbox("Year", YEARS)
+
+    if st.button("Generate Sample Paper Based on Year"):
+
+        prompt = f"""
+        Generate a CBSE Grade 10 {subject} question paper
+        based on {year} CBSE pattern.
+        Include:
+        - Section A MCQs
+        - Section B Short Answer
+        - Section C Long Answer
+        Follow authentic CBSE blueprint.
+        """
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an official CBSE paper setter."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3
+        )
+
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.write(response.choices[0].message.content)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# ===============================
+# DOUBT SOLVER
+# ===============================
+elif st.session_state.page == "Doubt":
+
+    st.markdown("## 💬 Doubt Solver")
+
+    question = st.text_area("Ask your doubt")
+
+    if st.button("Solve Doubt"):
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a precise CBSE teacher. Provide accurate answers only."},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.2
+        )
+
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.write(response.choices[0].message.content)
+        st.markdown("</div>", unsafe_allow_html=True)
