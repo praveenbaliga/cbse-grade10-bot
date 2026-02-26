@@ -31,6 +31,9 @@ if "streak_date" not in st.session_state:
 if "is_generating" not in st.session_state:
     st.session_state.is_generating = False
 
+if "generated_content" not in st.session_state:
+    st.session_state.generated_content = None
+
 # ======================================================
 # STYLING
 # ======================================================
@@ -49,17 +52,7 @@ st.markdown("""
     padding: 22px;
     border-radius: 14px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.05);
-    margin-bottom: 20px;
-}
-
-.stButton>button {
-    background-color: #2563eb;
-    color: white;
-    border-radius: 10px;
-    height: 3em;
-    font-size: 15px;
-    border: none;
-    width: 100%;
+    margin-top: 20px;
 }
 
 .metric-box {
@@ -73,7 +66,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ======================================================
-# SIDEBAR NAVIGATION
+# SIDEBAR
 # ======================================================
 st.sidebar.title("Navigation")
 
@@ -93,59 +86,32 @@ if st.sidebar.button("💬 Doubt Solver"):
 # DATA
 # ======================================================
 SUBJECTS = [
-    "Mathematics",
-    "Science",
-    "Social Science",
-    "English",
-    "Hindi",
-    "Artificial Intelligence",
-    "Information Technology"
+    "Mathematics", "Science", "Social Science",
+    "English", "Hindi",
+    "Artificial Intelligence", "Information Technology"
 ]
 
 YEARS = ["2024", "2023", "2022", "2021", "2020"]
 
 CHAPTERS = {
-    "Mathematics": [
-        "Real Numbers", "Polynomials", "Pair of Linear Equations",
-        "Quadratic Equations", "Arithmetic Progressions",
-        "Triangles", "Coordinate Geometry", "Trigonometry",
-        "Mensuration", "Statistics", "Probability"
-    ],
-    "Science": [
-        "Chemical Reactions and Equations",
-        "Acids Bases and Salts",
-        "Metals and Non-metals",
-        "Life Processes",
-        "Control and Coordination",
-        "How do Organisms Reproduce",
-        "Heredity and Evolution",
-        "Light Reflection and Refraction",
-        "Human Eye and the Colourful World",
-        "Sources of Energy"
-    ],
-    "Social Science": [
-        "Nationalism in Europe",
-        "Nationalism in India",
-        "Resources and Development",
-        "Agriculture",
-        "Manufacturing Industries",
-        "Political Parties",
-        "Outcomes of Democracy"
-    ],
-    "English": [
-        "A Letter to God",
-        "Nelson Mandela",
-        "Two Stories About Flying",
-        "From the Diary of Anne Frank"
-    ],
-    "Hindi": [
-        "सूरदास",
-        "राम-लक्ष्मण-परशुराम संवाद",
-        "आत्मकथ्य",
-        "पद"
-    ],
-    "Artificial Intelligence": ["AI Project Cycle", "Neural Networks"],
-    "Information Technology": ["Digital Documentation", "Electronic Spreadsheet"]
+    "Mathematics": ["Real Numbers","Polynomials","Pair of Linear Equations",
+                    "Quadratic Equations","Arithmetic Progressions",
+                    "Triangles","Coordinate Geometry","Trigonometry",
+                    "Mensuration","Statistics","Probability"],
+    "Science": ["Chemical Reactions and Equations","Acids Bases and Salts",
+                "Metals and Non-metals","Life Processes",
+                "Control and Coordination","How do Organisms Reproduce",
+                "Heredity and Evolution","Light Reflection and Refraction",
+                "Human Eye and the Colourful World","Sources of Energy"],
+    "Social Science": ["Nationalism in Europe","Nationalism in India",
+                       "Resources and Development","Agriculture",
+                       "Manufacturing Industries","Political Parties",
+                       "Outcomes of Democracy"],
+    "English": ["A Letter to God","Nelson Mandela",
+                "Two Stories About Flying","From the Diary of Anne Frank"],
+    "Hindi": ["सूरदास","राम-लक्ष्मण-परशुराम संवाद","आत्मकथ्य","पद"],
+    "Artificial Intelligence": ["AI Project Cycle","Neural Networks"],
+    "Information Technology": ["Digital Documentation","Electronic Spreadsheet"]
 }
 
 # ======================================================
@@ -169,99 +135,88 @@ if st.session_state.page == "Dashboard":
 # ======================================================
 elif st.session_state.page == "Study":
 
-    st.markdown("## 📚 90+ Study Mode")
+    st.markdown("## 📚 Study Mode")
 
     subject = st.selectbox("Subject", SUBJECTS)
     chapter = st.selectbox("Select Chapter", CHAPTERS.get(subject, []))
 
-    mode = st.radio(
-        "Learning Mode",
-        [
-            "Concept Clarity",
-            "Exam-Oriented Answers",
-            "Competency Case Study",
-            "Practice Test (40 Marks)",
-            "Previous Year Questions"
-        ]
-    )
+    mode = st.radio("Learning Mode", [
+        "Concept Clarity",
+        "Exam-Oriented Answers",
+        "Competency Case Study",
+        "Practice Test (40 Marks)",
+        "Previous Year Questions"
+    ])
 
-    generate_clicked = st.button(
-        "Generate Structured Lesson",
-        disabled=st.session_state.is_generating
-    )
+    # GENERATE BUTTON
+    if st.button("Generate", disabled=st.session_state.is_generating):
 
-    if generate_clicked:
         st.session_state.is_generating = True
-        st.rerun()
+        st.session_state.generated_content = None
 
-    if st.session_state.is_generating:
-
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown("<br><br>", unsafe_allow_html=True)
-            st.markdown("### ⏳ Generating Lesson...")
-            with st.spinner("Processing..."):
-                pass
-
-        if subject == "Hindi":
-            prompt = f"""
-आप एक सख्त CBSE कक्षा 10 के शिक्षक हैं।
+        # Centered Loader
+        with st.container():
+            c1, c2, c3 = st.columns([1,2,1])
+            with c2:
+                st.markdown("<br><br>", unsafe_allow_html=True)
+                with st.spinner("Generating..."):
+                    
+                    # Prompt Creation
+                    if subject == "Hindi":
+                        prompt = f"""
+आप एक सख्त CBSE कक्षा 10 शिक्षक हैं।
 
 विषय: {subject}
 अध्याय: {chapter}
 मोड: {mode}
 
-नियम:
-1. उत्तर पूरी तरह हिंदी में दें।
-2. केवल NCERT आधारित व्याख्या करें।
-3. इस संरचना का पालन करें:
+उत्तर पूरी तरह हिंदी में दें।
+NCERT आधारित संरचना:
 
-### 📘 अवधारणा की व्याख्या
+### 📘 अवधारणा
 ### 🧠 मुख्य बिंदु
 ### ✏ उदाहरण
 ### 🎯 परीक्षा टिप
-### ❓ अभ्यास प्रश्न (2, 3, 5 अंक)
+### ❓ अभ्यास प्रश्न
 ### ✅ उत्तर
-
-यदि मोड 'Previous Year Questions' है तो 10 पिछले वर्ष जैसे प्रश्न अंक योजना सहित दें।
 """
-        else:
-            prompt = f"""
-You are a strict CBSE Grade 10 teacher aligned strictly to NCERT textbook.
+                    else:
+                        prompt = f"""
+You are a strict CBSE Grade 10 teacher aligned to NCERT.
 
 Subject: {subject}
 Chapter: {chapter}
 Mode: {mode}
-
-Follow CBSE blueprint.
 
 Structure:
 ### 📘 Concept Explanation
 ### 🧠 Key Points
 ### ✏ Step-by-Step Example
 ### 🎯 Exam Tip
-### ❓ Practice Questions (2M, 3M, 5M)
+### ❓ Practice Questions
 ### ✅ Answers
-
-If mode is 'Previous Year Questions', generate 10 realistic PYQs with marking scheme.
 """
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a precise NCERT CBSE evaluator."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3
-        )
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {"role": "system", "content": "You are a precise CBSE evaluator."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.3
+                    )
 
-        st.session_state.xp += 20
-        st.session_state.topic_history.append((subject, chapter))
+                    st.session_state.generated_content = response.choices[0].message.content
+                    st.session_state.xp += 20
+                    st.session_state.topic_history.append((subject, chapter))
 
         st.session_state.is_generating = False
+        st.rerun()
 
+    # DISPLAY CONTENT
+    if st.session_state.generated_content:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.write(response.choices[0].message.content)
+        st.write(st.session_state.generated_content)
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ======================================================
@@ -272,43 +227,26 @@ elif st.session_state.page == "Papers":
     st.markdown("## 📜 Exam Simulation")
 
     subject = st.selectbox("Subject", SUBJECTS)
-    year = st.selectbox("Simulate Pattern Based On Year", YEARS)
+    year = st.selectbox("Pattern Year", YEARS)
 
-    if st.button("Generate Full Question Paper"):
+    if st.button("Generate Paper"):
 
-        if subject == "Hindi":
-            prompt = f"""
-कक्षा 10 CBSE {subject} का {year} पैटर्न आधारित पूरा प्रश्नपत्र तैयार करें।
-सेक्शन A, B, C के साथ।
-आंतरिक विकल्प शामिल करें।
-अंक वितरण स्पष्ट करें।
-उत्तर हिंदी में दें।
-"""
-        else:
-            prompt = f"""
-Generate a CBSE Grade 10 {subject} full-length question paper 
-based on {year} pattern.
+        with st.spinner("Generating Question Paper..."):
 
-Include:
-Section A – MCQs
-Section B – 2/3 marks
-Section C – 4/5 marks
-Internal choices.
-Marking scheme.
-"""
+            prompt = f"Generate CBSE Grade 10 {subject} paper based on {year} blueprint."
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are an official CBSE paper setter."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3
-        )
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an official CBSE paper setter."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3
+            )
 
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.write(response.choices[0].message.content)
-        st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            st.write(response.choices[0].message.content)
+            st.markdown("</div>", unsafe_allow_html=True)
 
 # ======================================================
 # DOUBT SOLVER
@@ -317,22 +255,24 @@ elif st.session_state.page == "Doubt":
 
     st.markdown("## 💬 Doubt Solver")
 
-    question = st.text_area("Ask your doubt clearly")
+    question = st.text_area("Ask your doubt")
 
-    if st.button("Solve Doubt") and question:
+    if st.button("Solve") and question:
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a precise CBSE Grade 10 teacher."},
-                {"role": "user", "content": question}
-            ],
-            temperature=0.2
-        )
+        with st.spinner("Solving..."):
 
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.write(response.choices[0].message.content)
-        st.markdown("</div>", unsafe_allow_html=True)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a precise CBSE teacher."},
+                    {"role": "user", "content": question}
+                ],
+                temperature=0.2
+            )
+
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            st.write(response.choices[0].message.content)
+            st.markdown("</div>", unsafe_allow_html=True)
 
 # ======================================================
 # FOOTER
