@@ -25,13 +25,20 @@ if "is_generating" not in st.session_state:
     st.session_state.is_generating = False
 if "generated_content" not in st.session_state:
     st.session_state.generated_content = None
+if "exam_mode_default" not in st.session_state:
+    st.session_state.exam_mode_default = "Full Question Paper (80 marks)"
 
 # ======================================================
 # HANDLE MOBILE NAV QUERY PARAMS (must be before any render)
 # ======================================================
 _qp = st.query_params
-if "nav" in _qp and _qp["nav"] in ["Dashboard", "Study", "Papers", "PYQ", "Doubt"]:
-    st.session_state.page = _qp["nav"]
+if "nav" in _qp and _qp["nav"] in ["Dashboard", "Study", "Papers", "PYQ", "ChapTest", "Doubt"]:
+    nav_dest = _qp["nav"]
+    if nav_dest == "ChapTest":
+        st.session_state.page = "Papers"
+        st.session_state.exam_mode_default = "Chapter-Wise Practice Test"
+    else:
+        st.session_state.page = nav_dest
     st.query_params.clear()
     st.rerun()
 
@@ -595,6 +602,10 @@ with st.sidebar:
         st.session_state.page = "Study"
     if st.button("📜  Exam Simulation"):
         st.session_state.page = "Papers"
+        st.session_state.exam_mode_default = "Full Question Paper (80 marks)"
+    if st.button("🎯  Chapter-Wise Test"):
+        st.session_state.page = "Papers"
+        st.session_state.exam_mode_default = "Chapter-Wise Practice Test"
     if st.button("📅  Previous Year Papers"):
         st.session_state.page = "PYQ"
     if st.button("💬  Doubt Solver"):
@@ -618,7 +629,7 @@ with st.sidebar:
 # MOBILE BOTTOM NAV BAR
 # ======================================================
 _cur_page = st.session_state.page
-_pages = [("Dashboard","🏠","Home"), ("Study","📚","Study"), ("Papers","📜","Exam"), ("PYQ","📅","PYQs"), ("Doubt","💬","Doubt")]
+_pages = [("Dashboard","🏠","Home"), ("Study","📚","Study"), ("Papers","📜","Exam"), ("PYQ","📅","PYQs"), ("ChapTest","🎯","Ch.Test"), ("Doubt","💬","Doubt")]
 _links = "".join([
     f"<a class='{'active' if _cur_page==p else ''}' href='?nav={p}' target='_self'>"
     f"<span class='nav-icon'>{ico}</span>{lbl}</a>"
@@ -839,7 +850,8 @@ elif st.session_state.page == "Papers":
     sim_mode = st.radio("📋 Simulation Type", [
         "Full Question Paper (80 marks)",
         "Chapter-Wise Practice Test"
-    ])
+    ], index=0 if st.session_state.exam_mode_default == "Full Question Paper (80 marks)" else 1)
+    st.session_state.exam_mode_default = sim_mode  # keep in sync
 
     if sim_mode == "Chapter-Wise Practice Test":
         chapter = st.selectbox("📌 Choose Chapter", CHAPTERS.get(subject, []))
