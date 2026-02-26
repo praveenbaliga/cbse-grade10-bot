@@ -27,16 +27,29 @@ if "generated_content" not in st.session_state:
     st.session_state.generated_content = None
 if "exam_mode_default" not in st.session_state:
     st.session_state.exam_mode_default = "Full Question Paper (80 marks)"
+if "mcq_questions" not in st.session_state:
+    st.session_state.mcq_questions = None
+if "mcq_answers" not in st.session_state:
+    st.session_state.mcq_answers = {}
+if "mcq_submitted" not in st.session_state:
+    st.session_state.mcq_submitted = False
+if "mcq_subject" not in st.session_state:
+    st.session_state.mcq_subject = None
+if "mcq_chapter" not in st.session_state:
+    st.session_state.mcq_chapter = None
 
 # ======================================================
 # HANDLE MOBILE NAV QUERY PARAMS (must be before any render)
 # ======================================================
 _qp = st.query_params
-if "nav" in _qp and _qp["nav"] in ["Dashboard", "Study", "Papers", "PYQ", "ChapTest", "Doubt"]:
+if "nav" in _qp and _qp["nav"] in ["Dashboard", "Study", "Papers", "PYQ", "ChapTest", "MCQ", "Doubt"]:
     nav_dest = _qp["nav"]
     if nav_dest == "ChapTest":
         st.session_state.page = "Papers"
         st.session_state.exam_mode_default = "Chapter-Wise Practice Test"
+    elif nav_dest == "MCQ":
+        st.session_state.page = "Papers"
+        st.session_state.exam_mode_default = "MCQ Quiz (Auto-Evaluated)"
     else:
         st.session_state.page = nav_dest
     st.query_params.clear()
@@ -606,6 +619,9 @@ with st.sidebar:
     if st.button("🎯  Chapter-Wise Test"):
         st.session_state.page = "Papers"
         st.session_state.exam_mode_default = "Chapter-Wise Practice Test"
+    if st.button("🔘  MCQ Quiz"):
+        st.session_state.page = "Papers"
+        st.session_state.exam_mode_default = "MCQ Quiz (Auto-Evaluated)"
     if st.button("📅  Previous Year Papers"):
         st.session_state.page = "PYQ"
     if st.button("💬  Doubt Solver"):
@@ -836,12 +852,12 @@ elif st.session_state.page == "Study":
 
 
 # ======================================================
-# EXAM SIMULATION  (full paper OR chapter-wise)
+# EXAM SIMULATION  (full paper OR chapter-wise OR MCQ quiz)
 # ======================================================
 elif st.session_state.page == "Papers":
 
     st.markdown("<div class='page-header'>📜 Exam Simulation</div>", unsafe_allow_html=True)
-    st.markdown("<div class='page-sub'>Full papers or laser-focused chapter practice</div>", unsafe_allow_html=True)
+    st.markdown("<div class='page-sub'>Full papers, chapter practice, or interactive MCQ quiz</div>", unsafe_allow_html=True)
 
     subject = st.selectbox("🎯 Choose Subject", SUBJECTS)
     color   = SUBJECT_COLORS.get(subject, "#6c63ff")
@@ -849,60 +865,281 @@ elif st.session_state.page == "Papers":
 
     sim_mode = st.radio("📋 Simulation Type", [
         "Full Question Paper (80 marks)",
-        "Chapter-Wise Practice Test"
-    ], index=0 if st.session_state.exam_mode_default == "Full Question Paper (80 marks)" else 1)
-    st.session_state.exam_mode_default = sim_mode  # keep in sync
+        "Chapter-Wise Practice Test",
+        "MCQ Quiz (Auto-Evaluated)"
+    ], index=["Full Question Paper (80 marks)", "Chapter-Wise Practice Test", "MCQ Quiz (Auto-Evaluated)"].index(
+        st.session_state.exam_mode_default
+    ) if st.session_state.exam_mode_default in [
+        "Full Question Paper (80 marks)", "Chapter-Wise Practice Test", "MCQ Quiz (Auto-Evaluated)"
+    ] else 0)
+    st.session_state.exam_mode_default = sim_mode
 
-    if sim_mode == "Chapter-Wise Practice Test":
-        chapter = st.selectbox("📌 Choose Chapter", CHAPTERS.get(subject, []))
-        marks   = st.select_slider("📊 Marks for this test", options=[10, 20, 25, 30, 40, 50], value=25)
-        btn_label = f"🚀 Generate {marks}-Mark Chapter Test"
-        prompt_text = (
-            f"Generate a {marks}-mark CBSE Class 10 chapter-wise practice test for "
-            f"Subject: {subject}, Chapter: {chapter}. "
-            f"Include a mix of 1-mark, 2-mark, 3-mark and 5-mark questions as appropriate. "
-            f"Follow official CBSE question paper format with instructions."
-        )
-        info_line = f"{chapter} · {marks} marks"
-    else:
-        chapter  = None
-        btn_label = "🚀 Generate Full Question Paper"
-        prompt_text = (
-            f"Generate a complete, realistic CBSE Class 10 question paper for {subject}. "
-            f"Total 80 marks. Include Section A (MCQs/1-mark), Section B (2-mark), "
-            f"Section C (3-mark), Section D (5-mark) and Section E (case-based). "
-            f"Follow latest CBSE pattern with all general instructions."
-        )
+    # ── FULL PAPER ──────────────────────────────────────
+    if sim_mode == "Full Question Paper (80 marks)":
         info_line = "Full syllabus · 80 marks · CBSE pattern"
-
-    st.markdown(f"""
+        st.markdown(f"""
 <div class='subject-banner' style='border:1px solid {color}40;'>
   <span style='font-size:clamp(1.8rem,5vw,2.5rem);'>{icon}</span>
   <div>
     <div style='font-weight:800;font-size:clamp(0.95rem,3vw,1.1rem);color:#e2e8f0;'>{subject} — Class 10</div>
-    <div style='font-size:clamp(0.72rem,2vw,0.82rem);color:#94a3b8;font-weight:600;margin-top:2px;'>
-      {info_line}
-    </div>
+    <div style='font-size:clamp(0.72rem,2vw,0.82rem);color:#94a3b8;font-weight:600;margin-top:2px;'>{info_line}</div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+        if st.button("🚀 Generate Full Question Paper"):
+            with st.spinner("📝 Setting your paper..."):
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are an official CBSE paper setter. Format papers clearly with sections, marks, and instructions exactly as CBSE does."},
+                        {"role": "user",   "content": (
+                            f"Generate a complete, realistic CBSE Class 10 question paper for {subject}. "
+                            f"Total 80 marks. Include Section A (MCQs/1-mark), Section B (2-mark), "
+                            f"Section C (3-mark), Section D (5-mark) and Section E (case-based). "
+                            f"Follow latest CBSE pattern with all general instructions."
+                        )}
+                    ], temperature=0.4
+                )
+                st.session_state.xp += 10
+            st.markdown("<div class='content-card'>", unsafe_allow_html=True)
+            st.write(response.choices[0].message.content)
+            st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<span class='xp-badge'>+10 XP Earned!</span>", unsafe_allow_html=True)
+
+    # ── CHAPTER-WISE PRACTICE TEST ───────────────────────
+    elif sim_mode == "Chapter-Wise Practice Test":
+        chapter = st.selectbox("📌 Choose Chapter", CHAPTERS.get(subject, []))
+        marks   = st.select_slider("📊 Marks for this test", options=[10, 20, 25, 30, 40, 50], value=25)
+        info_line = f"{chapter} · {marks} marks"
+        st.markdown(f"""
+<div class='subject-banner' style='border:1px solid {color}40;'>
+  <span style='font-size:clamp(1.8rem,5vw,2.5rem);'>{icon}</span>
+  <div>
+    <div style='font-weight:800;font-size:clamp(0.95rem,3vw,1.1rem);color:#e2e8f0;'>{subject} — Class 10</div>
+    <div style='font-size:clamp(0.72rem,2vw,0.82rem);color:#94a3b8;font-weight:600;margin-top:2px;'>{info_line}</div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+        if st.button(f"🚀 Generate {marks}-Mark Chapter Test"):
+            with st.spinner("📝 Setting your chapter test..."):
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are an official CBSE paper setter. Format papers clearly with sections, marks, and instructions exactly as CBSE does."},
+                        {"role": "user",   "content": (
+                            f"Generate a {marks}-mark CBSE Class 10 chapter-wise practice test for "
+                            f"Subject: {subject}, Chapter: {chapter}. "
+                            f"Include a mix of 1-mark, 2-mark, 3-mark and 5-mark questions as appropriate. "
+                            f"Follow official CBSE question paper format with instructions."
+                        )}
+                    ], temperature=0.4
+                )
+                st.session_state.xp += 5
+            st.markdown("<div class='content-card'>", unsafe_allow_html=True)
+            st.write(response.choices[0].message.content)
+            st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<span class='xp-badge'>+5 XP Earned!</span>", unsafe_allow_html=True)
+
+    # ── MCQ QUIZ (AUTO-EVALUATED) ────────────────────────
+    elif sim_mode == "MCQ Quiz (Auto-Evaluated)":
+        chapter  = st.selectbox("📌 Choose Chapter", CHAPTERS.get(subject, []))
+        n_mcqs   = st.select_slider("🔢 Number of Questions", options=[5, 10, 15, 20], value=10)
+        info_line = f"{chapter} · {n_mcqs} MCQs · Auto-evaluated"
+
+        st.markdown(f"""
+<div class='subject-banner' style='border:1px solid {color}40;'>
+  <span style='font-size:clamp(1.8rem,5vw,2.5rem);'>{icon}</span>
+  <div>
+    <div style='font-weight:800;font-size:clamp(0.95rem,3vw,1.1rem);color:#e2e8f0;'>{subject} — Class 10</div>
+    <div style='font-size:clamp(0.72rem,2vw,0.82rem);color:#94a3b8;font-weight:600;margin-top:2px;'>{info_line}</div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+        # Reset quiz if subject/chapter changed
+        if (st.session_state.mcq_subject != subject or
+                st.session_state.mcq_chapter != chapter):
+            st.session_state.mcq_questions = None
+            st.session_state.mcq_answers   = {}
+            st.session_state.mcq_submitted = False
+
+        # ── Generate MCQs ──
+        if st.session_state.mcq_questions is None:
+            if st.button("🎲 Generate MCQ Quiz"):
+                with st.spinner("🧠 Preparing your quiz..."):
+                    mcq_prompt = f"""Generate exactly {n_mcqs} multiple choice questions for CBSE Class 10 {subject}, Chapter: {chapter}.
+
+Return ONLY a Python list of dicts in this exact format, nothing else before or after:
+[
+  {{
+    "q": "Question text here?",
+    "options": ["A. option1", "B. option2", "C. option3", "D. option4"],
+    "answer": "A",
+    "explanation": "Brief explanation of why A is correct."
+  }},
+  ...
+]
+Each question must have exactly 4 options labelled A, B, C, D. The answer field must be just the letter A, B, C or D."""
+
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {"role": "system", "content": "You are a CBSE MCQ generator. Return only valid Python list syntax, no markdown, no backticks, no extra text."},
+                            {"role": "user",   "content": mcq_prompt}
+                        ],
+                        temperature=0.3
+                    )
+                    raw = response.choices[0].message.content.strip()
+                    # Strip any accidental markdown fences
+                    raw = raw.replace("```python", "").replace("```", "").strip()
+                    try:
+                        import ast as _ast
+                        questions = _ast.literal_eval(raw)
+                        st.session_state.mcq_questions = questions
+                        st.session_state.mcq_answers   = {}
+                        st.session_state.mcq_submitted = False
+                        st.session_state.mcq_subject   = subject
+                        st.session_state.mcq_chapter   = chapter
+                    except Exception as e:
+                        st.error(f"Could not parse quiz questions. Please try again. ({e})")
+                st.rerun()
+
+        # ── Render Quiz ──
+        elif not st.session_state.mcq_submitted:
+            questions = st.session_state.mcq_questions
+            st.markdown(f"""
+<div class='section-header'>
+  <div class='section-header-text'>Answer all {len(questions)} questions</div>
+  <div class='section-header-line'></div>
+</div>""", unsafe_allow_html=True)
+
+            with st.form("mcq_form"):
+                user_answers = {}
+                for i, q in enumerate(questions):
+                    st.markdown(f"""
+<div style='background:linear-gradient(135deg,#1a1d2e,#222640);border:1px solid rgba(108,99,255,0.15);
+            border-left:3px solid {color};border-radius:12px;padding:16px 18px;margin-bottom:12px;'>
+  <div style='font-weight:800;font-size:clamp(0.88rem,2.5vw,0.95rem);color:#e2e8f0;margin-bottom:10px;'>
+    Q{i+1}. {q["q"]}
+  </div>
+</div>""", unsafe_allow_html=True)
+                    user_answers[i] = st.radio(
+                        f"q_{i+1}",
+                        options=q["options"],
+                        key=f"mcq_{i}",
+                        label_visibility="collapsed"
+                    )
+
+                submitted = st.form_submit_button("✅ Submit & Evaluate", use_container_width=True)
+                if submitted:
+                    # Extract just the letter from selected option e.g. "A. option" → "A"
+                    st.session_state.mcq_answers = {
+                        i: (ans.split(".")[0].strip() if ans else None)
+                        for i, ans in user_answers.items()
+                    }
+                    st.session_state.mcq_submitted = True
+                    st.rerun()
+
+        # ── Show Results ──
+        else:
+            questions  = st.session_state.mcq_questions
+            answers    = st.session_state.mcq_answers
+            total      = len(questions)
+            correct    = sum(1 for i, q in enumerate(questions) if answers.get(i) == q["answer"])
+            wrong      = sum(1 for i, q in enumerate(questions) if answers.get(i) != q["answer"] and answers.get(i) is not None)
+            pct        = round((correct / total) * 100)
+            xp_earned  = correct * 2
+
+            if pct >= 80:
+                grade, grade_color, grade_emoji = "Excellent!", "#4ade80", "🏆"
+            elif pct >= 60:
+                grade, grade_color, grade_emoji = "Good Job!", "#facc15", "⭐"
+            elif pct >= 40:
+                grade, grade_color, grade_emoji = "Keep Practising", "#f97316", "💪"
+            else:
+                grade, grade_color, grade_emoji = "Need More Revision", "#f87171", "📖"
+
+            st.session_state.xp += xp_earned
+
+            # Score card
+            st.markdown(f"""
+<div style='background:linear-gradient(135deg,#1a1d2e,#222640);border:1px solid {grade_color}40;
+            border-radius:16px;padding:28px 24px;text-align:center;margin:20px 0;position:relative;overflow:hidden;'>
+  <div style='position:absolute;top:0;left:0;right:0;height:4px;
+              background:linear-gradient(90deg,{color},{grade_color});'></div>
+  <div style='font-size:3rem;margin-bottom:8px;'>{grade_emoji}</div>
+  <div style='font-size:clamp(1.8rem,6vw,2.8rem);font-weight:900;color:{grade_color};
+              font-family:Space Mono,monospace;line-height:1;'>{correct}/{total}</div>
+  <div style='font-size:clamp(1rem,3vw,1.3rem);font-weight:800;color:#e2e8f0;margin:6px 0 4px;'>{grade}</div>
+  <div style='font-size:0.82rem;color:#94a3b8;font-weight:600;'>{pct}% score · {correct} correct · {wrong} wrong</div>
+  <div style='margin-top:14px;'><span class='xp-badge'>+{xp_earned} XP Earned!</span></div>
+</div>
+
+<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;'>
+  <div style='background:#1a1d2e;border:1px solid #4ade8040;border-radius:12px;padding:14px;text-align:center;'>
+    <div style='font-size:1.6rem;font-weight:900;color:#4ade80;font-family:Space Mono,monospace;'>{correct}</div>
+    <div style='font-size:0.7rem;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;'>Correct</div>
+  </div>
+  <div style='background:#1a1d2e;border:1px solid #f8717140;border-radius:12px;padding:14px;text-align:center;'>
+    <div style='font-size:1.6rem;font-weight:900;color:#f87171;font-family:Space Mono,monospace;'>{wrong}</div>
+    <div style='font-size:0.7rem;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;'>Wrong</div>
+  </div>
+  <div style='background:#1a1d2e;border:1px solid {color}40;border-radius:12px;padding:14px;text-align:center;'>
+    <div style='font-size:1.6rem;font-weight:900;color:{color};font-family:Space Mono,monospace;'>{pct}%</div>
+    <div style='font-size:0.7rem;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;'>Score</div>
   </div>
 </div>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-    if st.button(btn_label):
-        with st.spinner("📝 Setting your paper..."):
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are an official CBSE paper setter. Format papers clearly with sections, marks, and instructions exactly as CBSE does."},
-                    {"role": "user",   "content": prompt_text}
-                ],
-                temperature=0.4
-            )
-            xp_earn = 5 if sim_mode == "Chapter-Wise Practice Test" else 10
-            st.session_state.xp += xp_earn
-        st.markdown("<div class='content-card'>", unsafe_allow_html=True)
-        st.write(response.choices[0].message.content)
-        st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown(f"<span class='xp-badge'>+{xp_earn} XP Earned!</span>", unsafe_allow_html=True)
+            # Answer review
+            st.markdown("""
+<div class='section-header'>
+  <div class='section-header-text'>Answer Review</div>
+  <div class='section-header-line'></div>
+</div>""", unsafe_allow_html=True)
+
+            for i, q in enumerate(questions):
+                user_ans    = answers.get(i)
+                correct_ans = q["answer"]
+                is_correct  = user_ans == correct_ans
+                border_col  = "#4ade80" if is_correct else "#f87171"
+                icon_result = "✅" if is_correct else "❌"
+                bg_col      = "rgba(74,222,128,0.06)" if is_correct else "rgba(248,113,113,0.06)"
+
+                options_html = ""
+                for opt in q["options"]:
+                    opt_letter = opt.split(".")[0].strip()
+                    if opt_letter == correct_ans:
+                        opt_style = f"color:#4ade80;font-weight:800;"
+                        opt_badge = " ✓"
+                    elif opt_letter == user_ans and not is_correct:
+                        opt_style = f"color:#f87171;font-weight:800;text-decoration:line-through;"
+                        opt_badge = " ✗"
+                    else:
+                        opt_style = "color:#94a3b8;"
+                        opt_badge = ""
+                    options_html += f"<div style='{opt_style}font-size:0.85rem;padding:2px 0;'>{opt}{opt_badge}</div>"
+
+                st.markdown(f"""
+<div style='background:{bg_col};border:1px solid {border_col}30;border-left:3px solid {border_col};
+            border-radius:12px;padding:16px 18px;margin-bottom:10px;'>
+  <div style='display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;'>
+    <div style='font-weight:800;font-size:clamp(0.85rem,2.5vw,0.92rem);color:#e2e8f0;flex:1;'>
+      {icon_result} Q{i+1}. {q["q"]}
+    </div>
+  </div>
+  <div style='margin:10px 0 8px 0;'>{options_html}</div>
+  <div style='background:rgba(108,99,255,0.1);border-radius:8px;padding:8px 12px;
+              font-size:0.8rem;color:#a78bfa;font-weight:700;'>
+    💡 {q["explanation"]}
+  </div>
+</div>""", unsafe_allow_html=True)
+
+            st.session_state.topic_history.append((subject, f"MCQ: {chapter}"))
+            if st.button("🔄 Try Again with New Questions"):
+                st.session_state.mcq_questions = None
+                st.session_state.mcq_answers   = {}
+                st.session_state.mcq_submitted = False
+                st.rerun()
 
 
 # ======================================================
