@@ -101,6 +101,50 @@ SUBJECTS = [
 
 YEARS = ["2024", "2023", "2022", "2021", "2020"]
 
+CHAPTERS = {
+    "Mathematics": [
+        "Real Numbers", "Polynomials", "Pair of Linear Equations",
+        "Quadratic Equations", "Arithmetic Progressions",
+        "Triangles", "Coordinate Geometry", "Trigonometry",
+        "Mensuration", "Statistics", "Probability"
+    ],
+    "Science": [
+        "Chemical Reactions and Equations",
+        "Acids Bases and Salts",
+        "Metals and Non-metals",
+        "Life Processes",
+        "Control and Coordination",
+        "How do Organisms Reproduce",
+        "Heredity and Evolution",
+        "Light Reflection and Refraction",
+        "Human Eye and the Colourful World",
+        "Sources of Energy"
+    ],
+    "Social Science": [
+        "Nationalism in Europe",
+        "Nationalism in India",
+        "Resources and Development",
+        "Agriculture",
+        "Manufacturing Industries",
+        "Political Parties",
+        "Outcomes of Democracy"
+    ],
+    "English": [
+        "A Letter to God",
+        "Nelson Mandela",
+        "Two Stories About Flying",
+        "From the Diary of Anne Frank"
+    ],
+    "Hindi": [
+        "सूरदास",
+        "राम-लक्ष्मण-परशुराम संवाद",
+        "आत्मकथ्य",
+        "पद"
+    ],
+    "Artificial Intelligence": ["AI Project Cycle", "Neural Networks"],
+    "Information Technology": ["Digital Documentation", "Electronic Spreadsheet"]
+}
+
 # ======================================================
 # DASHBOARD
 # ======================================================
@@ -117,24 +161,15 @@ if st.session_state.page == "Dashboard":
     with col2:
         st.markdown(f"<div class='metric-box'><h3>📖 Topics Studied</h3><h2>{len(st.session_state.topic_history)}</h2></div>", unsafe_allow_html=True)
 
-    st.markdown("---")
-    st.markdown("## Quick Start")
-
-    cols = st.columns(4)
-    for i, subject in enumerate(SUBJECTS):
-        with cols[i % 4]:
-            if st.button(subject):
-                st.session_state.page = "Study"
-
 # ======================================================
-# STUDY MODE (90+ ENGINE)
+# STUDY MODE
 # ======================================================
 elif st.session_state.page == "Study":
 
     st.markdown("## 📚 90+ Study Mode")
 
     subject = st.selectbox("Subject", SUBJECTS)
-    chapter = st.text_input("Enter Chapter Name")
+    chapter = st.selectbox("Select Chapter", CHAPTERS.get(subject, []))
 
     mode = st.radio(
         "Learning Mode",
@@ -142,53 +177,66 @@ elif st.session_state.page == "Study":
             "Concept Clarity",
             "Exam-Oriented Answers",
             "Competency Case Study",
-            "Practice Test (40 Marks)"
+            "Practice Test (40 Marks)",
+            "Previous Year Questions"
         ]
     )
 
     if st.button("Generate Structured Lesson"):
 
-        if subject in ["Mathematics", "Science"]:
-            temperature = 0.2
-        else:
-            temperature = 0.4
+        if subject == "Hindi":
 
-        prompt = f"""
+            prompt = f"""
+आप एक सख्त CBSE कक्षा 10 के शिक्षक हैं।
+
+विषय: {subject}
+अध्याय: {chapter}
+मोड: {mode}
+
+नियम:
+1. उत्तर पूरी तरह हिंदी में दें।
+2. केवल NCERT आधारित व्याख्या करें।
+3. इस संरचना का पालन करें:
+
+### 📘 अवधारणा की व्याख्या
+### 🧠 मुख्य बिंदु
+### ✏ उदाहरण
+### 🎯 परीक्षा टिप
+### ❓ अभ्यास प्रश्न (2, 3, 5 अंक)
+### ✅ उत्तर
+
+यदि मोड 'Previous Year Questions' है तो 10 पिछले वर्ष जैसे प्रश्न अंक योजना सहित दें।
+"""
+
+        else:
+
+            prompt = f"""
 You are a strict CBSE Grade 10 teacher aligned strictly to NCERT textbook.
 
 Subject: {subject}
 Chapter: {chapter}
 Mode: {mode}
 
-Follow these rules:
-1. Use NCERT-based explanation only.
-2. Follow CBSE blueprint.
-3. Structure answer as:
+Follow CBSE blueprint.
 
+Structure:
 ### 📘 Concept Explanation
 ### 🧠 Key Points
-### ✏ Step-by-Step Example (if numerical)
+### ✏ Step-by-Step Example
 ### 🎯 Exam Tip
 ### ❓ Practice Questions (2M, 3M, 5M)
 ### ✅ Answers
 
-4. For numericals:
-   - Write formula
-   - Substitute values
-   - Show steps clearly
-   - Highlight final answer
-
-Avoid unnecessary theory.
-If unsure, mention uncertainty.
+If mode is 'Previous Year Questions', generate 10 realistic PYQs with marking scheme.
 """
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a strict NCERT-based CBSE evaluator."},
+                {"role": "system", "content": "You are a precise NCERT CBSE evaluator."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=temperature
+            temperature=0.3
         )
 
         st.session_state.xp += 20
@@ -199,28 +247,36 @@ If unsure, mention uncertainty.
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ======================================================
-# EXAM SIMULATION (PATTERN BASED)
+# EXAM SIMULATION
 # ======================================================
 elif st.session_state.page == "Papers":
 
-    st.markdown("## 📜 Exam Simulation (Blueprint Aligned)")
+    st.markdown("## 📜 Exam Simulation")
 
     subject = st.selectbox("Subject", SUBJECTS)
     year = st.selectbox("Simulate Pattern Based On Year", YEARS)
 
     if st.button("Generate Full Question Paper"):
 
-        prompt = f"""
+        if subject == "Hindi":
+            prompt = f"""
+कक्षा 10 CBSE {subject} का {year} पैटर्न आधारित पूरा प्रश्नपत्र तैयार करें।
+सेक्शन A, B, C के साथ।
+आंतरिक विकल्प शामिल करें।
+अंक वितरण स्पष्ट करें।
+उत्तर हिंदी में दें।
+"""
+        else:
+            prompt = f"""
 Generate a CBSE Grade 10 {subject} full-length question paper 
 based on {year} pattern.
 
-Structure:
+Include:
 Section A – MCQs
-Section B – 2/3 mark questions
-Section C – 4/5 mark long answer
-Include internal choices.
-
-Ensure realistic CBSE marking distribution.
+Section B – 2/3 marks
+Section C – 4/5 marks
+Internal choices.
+Marking scheme.
 """
 
         response = client.chat.completions.create(
@@ -250,7 +306,7 @@ elif st.session_state.page == "Doubt":
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a precise CBSE Grade 10 teacher. Provide correct structured answers only."},
+                {"role": "system", "content": "You are a precise CBSE Grade 10 teacher."},
                 {"role": "user", "content": question}
             ],
             temperature=0.2
@@ -265,6 +321,6 @@ elif st.session_state.page == "Doubt":
 # ======================================================
 st.markdown("""
 <div style='text-align:center; padding:20px; color:#9ca3af; font-size:14px;'>
-CBSE 2026 Blueprint Aligned | 90+ Strategy Mode
+CBSE Blueprint Aligned | 90+ Strategy Mode
 </div>
 """, unsafe_allow_html=True)
