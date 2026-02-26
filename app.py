@@ -30,7 +30,7 @@ if "generated_content" not in st.session_state:
 # HANDLE MOBILE NAV QUERY PARAMS (must be before any render)
 # ======================================================
 _qp = st.query_params
-if "nav" in _qp and _qp["nav"] in ["Dashboard", "Study", "Papers", "Doubt"]:
+if "nav" in _qp and _qp["nav"] in ["Dashboard", "Study", "Papers", "PYQ", "Doubt"]:
     st.session_state.page = _qp["nav"]
     st.query_params.clear()
     st.rerun()
@@ -595,6 +595,8 @@ with st.sidebar:
         st.session_state.page = "Study"
     if st.button("📜  Exam Simulation"):
         st.session_state.page = "Papers"
+    if st.button("📅  Previous Year Papers"):
+        st.session_state.page = "PYQ"
     if st.button("💬  Doubt Solver"):
         st.session_state.page = "Doubt"
     st.markdown("---")
@@ -616,7 +618,7 @@ with st.sidebar:
 # MOBILE BOTTOM NAV BAR
 # ======================================================
 _cur_page = st.session_state.page
-_pages = [("Dashboard","🏠","Home"), ("Study","📚","Study"), ("Papers","📜","Exam"), ("Doubt","💬","Doubt")]
+_pages = [("Dashboard","🏠","Home"), ("Study","📚","Study"), ("Papers","📜","Exam"), ("PYQ","📅","PYQs"), ("Doubt","💬","Doubt")]
 _links = "".join([
     f"<a class='{'active' if _cur_page==p else ''}' href='?nav={p}' target='_self'>"
     f"<span class='nav-icon'>{ico}</span>{lbl}</a>"
@@ -693,6 +695,34 @@ if st.session_state.page == "Dashboard":
 </div>""", unsafe_allow_html=True)
         if st.button("Go to Doubt Solver", key="qa_doubt"):
             st.session_state.page = "Doubt"
+            st.rerun()
+
+    st.markdown("""
+<div class='section-header'>
+  <div class='section-header-text'>More Tools</div>
+  <div class='section-header-line'></div>
+</div>
+    """, unsafe_allow_html=True)
+    qa4, qa5 = st.columns(2)
+    with qa4:
+        st.markdown("""
+<div class='quick-tile-top'>
+  <div class='quick-tile-icon'>📅</div>
+  <div class='quick-tile-title'>Previous Year Papers</div>
+  <div class='quick-tile-desc'>CBSE board papers from 2019–2023 for all subjects</div>
+</div>""", unsafe_allow_html=True)
+        if st.button("Go to Previous Year Papers", key="qa_pyq"):
+            st.session_state.page = "PYQ"
+            st.rerun()
+    with qa5:
+        st.markdown("""
+<div class='quick-tile-top'>
+  <div class='quick-tile-icon'>🎯</div>
+  <div class='quick-tile-title'>Chapter-Wise Test</div>
+  <div class='quick-tile-desc'>Practice one chapter at a time with custom marks</div>
+</div>""", unsafe_allow_html=True)
+        if st.button("Go to Chapter Test", key="qa_chap"):
+            st.session_state.page = "Papers"
             st.rerun()
 
     st.markdown("""
@@ -795,16 +825,43 @@ elif st.session_state.page == "Study":
 
 
 # ======================================================
-# EXAM SIMULATION
+# EXAM SIMULATION  (full paper OR chapter-wise)
 # ======================================================
 elif st.session_state.page == "Papers":
 
     st.markdown("<div class='page-header'>📜 Exam Simulation</div>", unsafe_allow_html=True)
-    st.markdown("<div class='page-sub'>CBSE-pattern full question papers, generated on demand</div>", unsafe_allow_html=True)
+    st.markdown("<div class='page-sub'>Full papers or laser-focused chapter practice</div>", unsafe_allow_html=True)
 
     subject = st.selectbox("🎯 Choose Subject", SUBJECTS)
-    color = SUBJECT_COLORS.get(subject, "#6c63ff")
-    icon = SUBJECT_ICONS.get(subject, "📘")
+    color   = SUBJECT_COLORS.get(subject, "#6c63ff")
+    icon    = SUBJECT_ICONS.get(subject, "📘")
+
+    sim_mode = st.radio("📋 Simulation Type", [
+        "Full Question Paper (80 marks)",
+        "Chapter-Wise Practice Test"
+    ])
+
+    if sim_mode == "Chapter-Wise Practice Test":
+        chapter = st.selectbox("📌 Choose Chapter", CHAPTERS.get(subject, []))
+        marks   = st.select_slider("📊 Marks for this test", options=[10, 20, 25, 30, 40, 50], value=25)
+        btn_label = f"🚀 Generate {marks}-Mark Chapter Test"
+        prompt_text = (
+            f"Generate a {marks}-mark CBSE Class 10 chapter-wise practice test for "
+            f"Subject: {subject}, Chapter: {chapter}. "
+            f"Include a mix of 1-mark, 2-mark, 3-mark and 5-mark questions as appropriate. "
+            f"Follow official CBSE question paper format with instructions."
+        )
+        info_line = f"{chapter} · {marks} marks"
+    else:
+        chapter  = None
+        btn_label = "🚀 Generate Full Question Paper"
+        prompt_text = (
+            f"Generate a complete, realistic CBSE Class 10 question paper for {subject}. "
+            f"Total 80 marks. Include Section A (MCQs/1-mark), Section B (2-mark), "
+            f"Section C (3-mark), Section D (5-mark) and Section E (case-based). "
+            f"Follow latest CBSE pattern with all general instructions."
+        )
+        info_line = "Full syllabus · 80 marks · CBSE pattern"
 
     st.markdown(f"""
 <div class='subject-banner' style='border:1px solid {color}40;'>
@@ -812,27 +869,133 @@ elif st.session_state.page == "Papers":
   <div>
     <div style='font-weight:800;font-size:clamp(0.95rem,3vw,1.1rem);color:#e2e8f0;'>{subject} — Class 10</div>
     <div style='font-size:clamp(0.72rem,2vw,0.82rem);color:#94a3b8;font-weight:600;margin-top:2px;'>
-      Based on latest CBSE syllabus · NCERT pattern · 80 marks
+      {info_line}
     </div>
   </div>
 </div>
     """, unsafe_allow_html=True)
 
-    if st.button("🚀 Generate Question Paper"):
-        with st.spinner("📝 Setting your exam paper..."):
+    if st.button(btn_label):
+        with st.spinner("📝 Setting your paper..."):
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are an official CBSE paper setter."},
-                    {"role": "user", "content": f"Generate full paper for {subject} Class 10."}
+                    {"role": "system", "content": "You are an official CBSE paper setter. Format papers clearly with sections, marks, and instructions exactly as CBSE does."},
+                    {"role": "user",   "content": prompt_text}
                 ],
-                temperature=0.3
+                temperature=0.4
             )
-            st.session_state.xp += 10
+            xp_earn = 5 if sim_mode == "Chapter-Wise Practice Test" else 10
+            st.session_state.xp += xp_earn
         st.markdown("<div class='content-card'>", unsafe_allow_html=True)
         st.write(response.choices[0].message.content)
         st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("<span class='xp-badge'>+10 XP Earned!</span>", unsafe_allow_html=True)
+        st.markdown(f"<span class='xp-badge'>+{xp_earn} XP Earned!</span>", unsafe_allow_html=True)
+
+
+# ======================================================
+# PREVIOUS YEAR PAPERS
+# ======================================================
+elif st.session_state.page == "PYQ":
+
+    st.markdown("<div class='page-header'>📅 Previous Year Papers</div>", unsafe_allow_html=True)
+    st.markdown("<div class='page-sub'>CBSE Board exam questions from 2019 to 2023, reconstructed by AI</div>", unsafe_allow_html=True)
+
+    subject = st.selectbox("🎯 Choose Subject", SUBJECTS)
+    color   = SUBJECT_COLORS.get(subject, "#6c63ff")
+    icon    = SUBJECT_ICONS.get(subject, "📘")
+
+    year = st.select_slider(
+        "📆 Select Year",
+        options=[2019, 2020, 2021, 2022, 2023],
+        value=2023
+    )
+
+    pyq_type = st.radio("📋 Paper Type", [
+        "Full Board Paper",
+        "Important Questions Only (Top 30)",
+        "Chapter-Wise PYQs"
+    ])
+
+    if pyq_type == "Chapter-Wise PYQs":
+        chapter = st.selectbox("📌 Choose Chapter", CHAPTERS.get(subject, []))
+        prompt_text = (
+            f"Reconstruct previous year CBSE Class 10 board exam questions for "
+            f"Subject: {subject}, Chapter: {chapter}, Year: {year}. "
+            f"List all questions that appeared from this chapter in the {year} CBSE board exam. "
+            f"Include the marks weightage for each question. "
+            f"If exact questions aren't available, generate highly likely questions based on the {year} CBSE pattern and syllabus for this chapter."
+        )
+        info_line = f"{chapter} · {year} Board Exam"
+    elif pyq_type == "Important Questions Only (Top 30)":
+        chapter = None
+        prompt_text = (
+            f"List the top 30 most important previous year CBSE Class 10 board exam questions "
+            f"for {subject} from the {year} board exam. "
+            f"Group them by chapter. Include marks for each. "
+            f"Focus on questions most likely to repeat in upcoming exams."
+        )
+        info_line = f"Top 30 important questions · {year}"
+    else:
+        chapter = None
+        prompt_text = (
+            f"Reconstruct the complete CBSE Class 10 {subject} board question paper from {year}. "
+            f"Include all sections (A, B, C, D, E), all questions with marks, "
+            f"general instructions, and time duration exactly as it appeared in the {year} CBSE board exam. "
+            f"Note at the top that this is an AI reconstruction for practice purposes."
+        )
+        info_line = f"Full Board Paper · {year} · 80 marks"
+
+    # Year badges
+    year_html = "<div style='display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px 0;'>"
+    for y in [2019, 2020, 2021, 2022, 2023]:
+        active_style = f"background:linear-gradient(90deg,{color},{color}99);color:white;border-color:{color};" if y == year else "background:#1a1d2e;color:#94a3b8;border-color:rgba(108,99,255,0.2);"
+        year_html += f"<span style='{active_style}border:1px solid;border-radius:20px;padding:4px 14px;font-size:0.78rem;font-weight:800;'>{y}</span>"
+    year_html += "</div>"
+
+    st.markdown(f"""
+<div class='subject-banner' style='border:1px solid {color}40;'>
+  <span style='font-size:clamp(1.8rem,5vw,2.5rem);'>{icon}</span>
+  <div style='flex:1;'>
+    <div style='font-weight:800;font-size:clamp(0.95rem,3vw,1.1rem);color:#e2e8f0;'>{subject} — Class 10</div>
+    <div style='font-size:clamp(0.72rem,2vw,0.82rem);color:#94a3b8;font-weight:600;margin-top:2px;'>{info_line}</div>
+    {year_html}
+  </div>
+</div>
+    """, unsafe_allow_html=True)
+
+    if st.button(f"📄 Load {year} Paper"):
+        with st.spinner(f"📚 Retrieving {year} questions for {subject}..."):
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": (
+                        "You are a CBSE exam expert with deep knowledge of all previous year board papers. "
+                        "Reconstruct papers as accurately as possible. Always note at the top that this is "
+                        "an AI-reconstructed paper for practice. Format clearly with sections and marks."
+                    )},
+                    {"role": "user", "content": prompt_text}
+                ],
+                temperature=0.2
+            )
+            st.session_state.xp += 5
+            st.session_state.topic_history.append((subject, f"PYQ {year}"))
+
+        st.markdown(f"""
+<div style='background:linear-gradient(135deg,#1a1d2e,#222640);border:1px solid {color}30;
+            border-radius:14px;padding:14px 18px;margin:16px 0;
+            display:flex;align-items:center;gap:14px;flex-wrap:wrap;'>
+  <span style='font-size:1.8rem;'>{icon}</span>
+  <div>
+    <div style='font-weight:800;color:#e2e8f0;font-size:0.95rem;'>{subject} · {year} Board Paper</div>
+    <div style='font-size:0.75rem;color:#94a3b8;font-weight:600;margin-top:2px;'>AI-reconstructed for practice · CBSE pattern</div>
+  </div>
+  <span class='xp-badge' style='margin-left:auto;'>+5 XP</span>
+</div>
+        """, unsafe_allow_html=True)
+        st.markdown("<div class='content-card'>", unsafe_allow_html=True)
+        st.write(response.choices[0].message.content)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ======================================================
