@@ -1,223 +1,277 @@
 import streamlit as st
 from openai import OpenAI
-import datetime
 
-# ======================================================
-# CONFIG
-# ======================================================
-st.set_page_config(
-    page_title="CBSE Grade 10 Smart Tutor",
-    page_icon="📘",
-    layout="wide"
-)
+# -------------------- PAGE CONFIG --------------------
+st.set_page_config(page_title="CBSE Grade 10 AI Tutor", layout="wide")
 
+# -------------------- OPENAI CLIENT --------------------
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# ======================================================
-# SESSION STATE INIT
-# ======================================================
-if "page" not in st.session_state:
-    st.session_state.page = "Dashboard"
-
-if "xp" not in st.session_state:
-    st.session_state.xp = 0
-
-if "topic_history" not in st.session_state:
-    st.session_state.topic_history = []
-
-if "is_generating" not in st.session_state:
-    st.session_state.is_generating = False
-
-if "generated_content" not in st.session_state:
-    st.session_state.generated_content = None
-
-# ======================================================
-# STYLING
-# ======================================================
+# -------------------- CUSTOM CSS --------------------
 st.markdown("""
 <style>
-.main { background-color: #f8fafc; }
-
-.header {
-    font-size: 34px;
-    font-weight: 700;
-    color: #111827;
+.main-title {
+    text-align: center;
+    font-size: 36px;
+    font-weight: bold;
+    color: #2E86C1;
 }
-
-.card {
-    background: white;
-    padding: 22px;
-    border-radius: 14px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.05);
-    margin-bottom: 20px;
+.center-loader {
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    margin-top: 30px;
 }
-
-.stButton>button {
-    background-color: #2563eb;
+.stButton > button {
+    background-color: #2E86C1;
     color: white;
+    font-size: 18px;
     border-radius: 10px;
     height: 3em;
-    font-size: 15px;
-    border: none;
     width: 100%;
 }
-
-.stButton>button:disabled {
-    background-color: #9ca3af;
-}
-
-.metric-box {
-    background: white;
-    padding: 18px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+.stButton > button:disabled {
+    background-color: #A9CCE3;
+    color: white;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ======================================================
-# SIDEBAR NAVIGATION (RESTORED)
-# ======================================================
+st.markdown("<div class='main-title'>CBSE Grade 10 AI Academic Assistant</div>", unsafe_allow_html=True)
+
+# -------------------- SIDEBAR --------------------
 st.sidebar.title("Navigation")
+menu = st.sidebar.radio(
+    "Select Option",
+    [
+        "Structured Lesson",
+        "Exam Simulator",
+        "Previous Years Papers",
+        "Answer Evaluation"
+    ]
+)
 
-if st.sidebar.button("🏠 Dashboard"):
-    st.session_state.page = "Dashboard"
-
-if st.sidebar.button("📚 Study Mode"):
-    st.session_state.page = "Study"
-
-if st.sidebar.button("📜 Exam Simulation"):
-    st.session_state.page = "Papers"
-
-if st.sidebar.button("💬 Doubt Solver"):
-    st.session_state.page = "Doubt"
-
-# ======================================================
-# DATA
-# ======================================================
-SUBJECTS = ["Mathematics","Science","Social Science","English","Hindi"]
-CHAPTERS = {
-    "Mathematics": ["Real Numbers","Polynomials","Pair of Linear Equations"],
-    "Science": ["Chemical Reactions and Equations","Life Processes"],
-    "Social Science": ["Nationalism in India","Political Parties"],
-    "English": ["A Letter to God","Nelson Mandela"],
-    "Hindi": ["सूरदास","आत्मकथ्य"]
+# -------------------- SUBJECTS --------------------
+subjects = {
+    "Mathematics (Standard - 041)": [
+        "Real Numbers",
+        "Polynomials",
+        "Pair of Linear Equations in Two Variables",
+        "Quadratic Equations",
+        "Arithmetic Progressions",
+        "Triangles",
+        "Coordinate Geometry",
+        "Trigonometry",
+        "Statistics",
+        "Probability"
+    ],
+    "Science": [
+        "Chemical Reactions",
+        "Acids Bases and Salts",
+        "Metals and Non Metals",
+        "Life Processes",
+        "Control and Coordination",
+        "Electricity",
+        "Light",
+        "Our Environment"
+    ],
+    "Social Science - History": [
+        "The Rise of Nationalism in Europe",
+        "Nationalism in India",
+        "The Making of a Global World",
+        "The Age of Industrialisation"
+    ],
+    "English Language & Literature": [
+        "First Flight",
+        "Footprints Without Feet",
+        "Grammar",
+        "Writing Skills"
+    ],
+    "Hindi Course A": [
+        "स्पर्श",
+        "संचयन",
+        "व्याकरण",
+        "लेखन कौशल"
+    ],
+    "AI",
+    "IT"
 }
 
-# ======================================================
-# DASHBOARD
-# ======================================================
-if st.session_state.page == "Dashboard":
+# -------------------- COMMON PROMPT --------------------
+base_prompt = """
+You are a CBSE Grade 10 academic expert strictly aligned with NCERT curriculum under CBSE guidelines.
 
-    st.markdown("<div class='header'>📘 CBSE Grade 10 Smart Tutor</div>", unsafe_allow_html=True)
+Rules:
+1. Follow latest CBSE pattern.
+2. Minimum 40% competency-based.
+3. Strictly NCERT.
+4. Maintain board-level structure.
+"""
 
-    col1, col2 = st.columns(2)
+# =========================================================
+# =============== STRUCTURED LESSON =======================
+# =========================================================
+if menu == "Structured Lesson":
 
-    with col1:
-        st.markdown(f"<div class='metric-box'><h3>⭐ XP</h3><h2>{st.session_state.xp}</h2></div>", unsafe_allow_html=True)
+    subject = st.selectbox("Select Subject", list(subjects.keys()))
 
-    with col2:
-        st.markdown(f"<div class='metric-box'><h3>📖 Topics</h3><h2>{len(st.session_state.topic_history)}</h2></div>", unsafe_allow_html=True)
+    chapter = None
+    if isinstance(subjects[subject], list):
+        chapter = st.selectbox("Select Chapter", subjects[subject])
 
-# ======================================================
-# STUDY MODE
-# ======================================================
-elif st.session_state.page == "Study":
+    if st.button("Generate"):
 
-    st.markdown("## 📚 Study Mode")
+        st.markdown("<div class='center-loader'>⏳ Generating Lesson...</div>", unsafe_allow_html=True)
 
-    subject = st.selectbox("Subject", SUBJECTS)
-    chapter = st.selectbox("Select Chapter", CHAPTERS.get(subject, []))
+        if "Hindi" in subject:
+            language_instruction = "Generate full response strictly in Hindi language."
+        else:
+            language_instruction = "Generate response in English."
 
-    mode = st.radio("Learning Mode", [
-        "Concept Clarity",
-        "Exam-Oriented Answers",
-        "Previous Year Questions"
-    ])
+        prompt = f"""
+        {base_prompt}
 
-    if st.button("Generate", disabled=st.session_state.is_generating):
-        st.session_state.is_generating = True
-        st.session_state.generated_content = None
-        st.rerun()
+        {language_instruction}
 
-    if st.session_state.is_generating:
+        Provide structured lesson for:
+        Subject: {subject}
+        Chapter: {chapter}
 
-        c1, c2, c3 = st.columns([1,2,1])
-        with c2:
-            st.markdown("<br><br>", unsafe_allow_html=True)
-            with st.spinner("Generating Lesson..."):
+        Include:
+        - Background
+        - Key Concepts
+        - Important Dates
+        - Important People
+        - Important Places
+        - Definitions
+        - Cause & Effect
+        - 5 Board Questions
+        - 5 MCQs
+        - 3 Assertion Reason
+        """
 
-                if subject == "Hindi":
-                    prompt = f"कक्षा 10 CBSE विषय {subject}, अध्याय {chapter}, मोड {mode}. उत्तर हिंदी में दें।"
-                else:
-                    prompt = f"CBSE Grade 10 Subject {subject}, Chapter {chapter}, Mode {mode}. Follow NCERT structure."
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
 
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "You are a CBSE evaluator."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.3
-                )
+        st.markdown(response.choices[0].message.content)
 
-                st.session_state.generated_content = response.choices[0].message.content
-                st.session_state.xp += 20
-                st.session_state.topic_history.append((subject, chapter))
+# =========================================================
+# ================= EXAM SIMULATOR ========================
+# =========================================================
+elif menu == "Exam Simulator":
 
-        st.session_state.is_generating = False
-        st.rerun()
+    subject = st.selectbox("Subject", list(subjects.keys()))
+    scope = st.radio("Syllabus Scope", ["Chapter-wise", "Full Syllabus"])
+    marks = st.selectbox("Marks", [30, 50, 80])
+    difficulty = st.selectbox("Difficulty", ["Standard Board Level", "Slightly Tough"])
 
-    if st.session_state.generated_content:
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.write(st.session_state.generated_content)
-        st.markdown("</div>", unsafe_allow_html=True)
+    if st.button("Generate Exam Paper"):
 
-# ======================================================
-# EXAM SIMULATION
-# ======================================================
-elif st.session_state.page == "Papers":
+        st.markdown("<div class='center-loader'>⏳ Generating Question Paper...</div>", unsafe_allow_html=True)
 
-    st.markdown("## 📜 Exam Simulation")
+        if "Hindi" in subject:
+            language_instruction = "Generate complete question paper strictly in Hindi."
+        else:
+            language_instruction = "Generate paper in English."
 
-    subject = st.selectbox("Subject", SUBJECTS)
+        prompt = f"""
+        {base_prompt}
 
-    if st.button("Generate Paper"):
-        with st.spinner("Generating Question Paper..."):
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are an official CBSE paper setter."},
-                    {"role": "user", "content": f"Generate full paper for {subject} Class 10."}
-                ],
-                temperature=0.3
-            )
+        {language_instruction}
 
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.write(response.choices[0].message.content)
-            st.markdown("</div>", unsafe_allow_html=True)
+        Create a {marks} marks CBSE Grade 10 paper.
+        Subject: {subject}
+        Scope: {scope}
+        Difficulty: {difficulty}
 
-# ======================================================
-# DOUBT SOLVER
-# ======================================================
-elif st.session_state.page == "Doubt":
+        Include:
+        - General Instructions
+        - Sections (MCQ, 2m, 3m, 4m, Case Study)
+        - Internal choices
+        - Time Duration
+        """
 
-    st.markdown("## 💬 Doubt Solver")
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
 
-    question = st.text_area("Ask your doubt")
+        st.markdown(response.choices[0].message.content)
 
-    if st.button("Solve") and question:
-        with st.spinner("Solving..."):
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are a CBSE teacher."},
-                    {"role": "user", "content": question}
-                ],
-                temperature=0.2
-            )
+# =========================================================
+# =============== PREVIOUS YEARS PAPERS ===================
+# =========================================================
+elif menu == "Previous Years Papers":
 
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.write(response.choices[0].message.content)
-            st.markdown("</div>", unsafe_allow_html=True)
+    st.subheader("📄 Previous Years Question Papers")
+
+    subject = st.selectbox("Select Subject", list(subjects.keys()))
+    year = st.selectbox("Select Year", ["2023", "2022", "2021", "2020", "2019"])
+
+    if st.button("Generate Previous Year Paper"):
+
+        st.markdown("<div class='center-loader'>⏳ Generating Previous Year Paper...</div>", unsafe_allow_html=True)
+
+        if "Hindi" in subject:
+            language_instruction = "Generate paper strictly in Hindi."
+        else:
+            language_instruction = "Generate paper in English."
+
+        prompt = f"""
+        {base_prompt}
+
+        {language_instruction}
+
+        Simulate CBSE Grade 10 {subject} Board Exam Paper for Year {year}.
+        Follow authentic blueprint.
+        Include internal choices.
+        Maintain realistic difficulty.
+        Include sections and marking scheme.
+        """
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        st.markdown(response.choices[0].message.content)
+
+# =========================================================
+# ================= ANSWER EVALUATION =====================
+# =========================================================
+elif menu == "Answer Evaluation":
+
+    subject = st.selectbox("Subject", list(subjects.keys()))
+    question = st.text_area("Paste Question")
+    answer = st.text_area("Paste Student Answer")
+
+    if st.button("Evaluate"):
+
+        st.markdown("<div class='center-loader'>⏳ Evaluating...</div>", unsafe_allow_html=True)
+
+        prompt = f"""
+        {base_prompt}
+
+        Evaluate answer with step marking.
+        Classify mistakes:
+        - Concept
+        - Formula
+        - Calculation
+        - Presentation
+        - Interpretation
+
+        Question:
+        {question}
+
+        Answer:
+        {answer}
+        """
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        st.markdown(response.choices[0].message.content)
