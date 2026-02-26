@@ -28,6 +28,9 @@ if "topic_history" not in st.session_state:
 if "streak_date" not in st.session_state:
     st.session_state.streak_date = str(datetime.date.today())
 
+if "is_generating" not in st.session_state:
+    st.session_state.is_generating = False
+
 # ======================================================
 # STYLING
 # ======================================================
@@ -182,10 +185,25 @@ elif st.session_state.page == "Study":
         ]
     )
 
-    if st.button("Generate Structured Lesson"):
+    generate_clicked = st.button(
+        "Generate Structured Lesson",
+        disabled=st.session_state.is_generating
+    )
+
+    if generate_clicked:
+        st.session_state.is_generating = True
+        st.rerun()
+
+    if st.session_state.is_generating:
+
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            st.markdown("### ⏳ Generating Lesson...")
+            with st.spinner("Processing..."):
+                pass
 
         if subject == "Hindi":
-
             prompt = f"""
 आप एक सख्त CBSE कक्षा 10 के शिक्षक हैं।
 
@@ -207,9 +225,7 @@ elif st.session_state.page == "Study":
 
 यदि मोड 'Previous Year Questions' है तो 10 पिछले वर्ष जैसे प्रश्न अंक योजना सहित दें।
 """
-
         else:
-
             prompt = f"""
 You are a strict CBSE Grade 10 teacher aligned strictly to NCERT textbook.
 
@@ -241,6 +257,8 @@ If mode is 'Previous Year Questions', generate 10 realistic PYQs with marking sc
 
         st.session_state.xp += 20
         st.session_state.topic_history.append((subject, chapter))
+
+        st.session_state.is_generating = False
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.write(response.choices[0].message.content)
