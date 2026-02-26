@@ -203,6 +203,36 @@ section[data-testid="stSidebar"] h2 {
 .quick-tile-title { font-weight: 800; font-size: clamp(0.88rem, 2.5vw, 1rem); color: var(--text); margin-bottom: 4px; }
 .quick-tile-desc  { font-size: clamp(0.72rem, 2vw, 0.82rem); color: var(--muted); font-weight: 600; }
 
+/* Quick tile info block sitting above the button */
+.quick-tile-top {
+    background: linear-gradient(135deg, var(--surface), var(--surface2));
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 18px 16px 14px 16px;
+    transition: border-color 0.2s;
+}
+.quick-tile-top:hover { border-color: var(--accent1); }
+
+/* Make the button under each quick tile flush with the card above */
+div[data-testid="column"] .quick-tile-top + div .stButton > button {
+    border-radius: 0 0 var(--radius) var(--radius) !important;
+    background: linear-gradient(90deg, rgba(108,99,255,0.18), rgba(167,139,250,0.18)) !important;
+    color: var(--accent4) !important;
+    box-shadow: none !important;
+    border: 1px solid var(--border) !important;
+    border-top: none !important;
+    font-size: 0.82rem !important;
+    height: 2.8em !important;
+    letter-spacing: 0.04em;
+}
+div[data-testid="column"] .quick-tile-top + div .stButton > button:hover {
+    background: linear-gradient(90deg, rgba(108,99,255,0.35), rgba(167,139,250,0.3)) !important;
+    color: white !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
 /* ---- SUBJECT GRID ---- */
 .subject-grid {
     display: grid;
@@ -629,24 +659,41 @@ if st.session_state.page == "Dashboard":
   <div class='section-header-text'>Quick Access</div>
   <div class='section-header-line'></div>
 </div>
-<div class='quick-grid'>
-  <div class='quick-tile'>
-    <div class='quick-tile-icon'>📚</div>
-    <div class='quick-tile-title'>Study Mode</div>
-    <div class='quick-tile-desc'>NCERT-based concept explanations and PYQs</div>
-  </div>
-  <div class='quick-tile'>
-    <div class='quick-tile-icon'>📜</div>
-    <div class='quick-tile-title'>Exam Simulation</div>
-    <div class='quick-tile-desc'>Full-length CBSE-style question papers</div>
-  </div>
-  <div class='quick-tile'>
-    <div class='quick-tile-icon'>💬</div>
-    <div class='quick-tile-title'>Doubt Solver</div>
-    <div class='quick-tile-desc'>Get instant answers from your AI teacher</div>
-  </div>
-</div>
     """, unsafe_allow_html=True)
+
+    qa1, qa2, qa3 = st.columns(3)
+    with qa1:
+        st.markdown("""
+<div class='quick-tile-top'>
+  <div class='quick-tile-icon'>📚</div>
+  <div class='quick-tile-title'>Study Mode</div>
+  <div class='quick-tile-desc'>NCERT-based concept explanations and PYQs</div>
+</div>""", unsafe_allow_html=True)
+        if st.button("Go to Study Mode", key="qa_study"):
+            st.session_state.page = "Study"
+            st.rerun()
+
+    with qa2:
+        st.markdown("""
+<div class='quick-tile-top'>
+  <div class='quick-tile-icon'>📜</div>
+  <div class='quick-tile-title'>Exam Simulation</div>
+  <div class='quick-tile-desc'>Full-length CBSE-style question papers</div>
+</div>""", unsafe_allow_html=True)
+        if st.button("Go to Exam Simulation", key="qa_exam"):
+            st.session_state.page = "Papers"
+            st.rerun()
+
+    with qa3:
+        st.markdown("""
+<div class='quick-tile-top'>
+  <div class='quick-tile-icon'>💬</div>
+  <div class='quick-tile-title'>Doubt Solver</div>
+  <div class='quick-tile-desc'>Get instant answers from your AI teacher</div>
+</div>""", unsafe_allow_html=True)
+        if st.button("Go to Doubt Solver", key="qa_doubt"):
+            st.session_state.page = "Doubt"
+            st.rerun()
 
     st.markdown("""
 <div class='section-header'>
