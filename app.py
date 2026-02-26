@@ -360,9 +360,26 @@ div[data-testid="column"] .quick-tile-top + div .stButton > button:hover {
     transition: all 0.2s;
     font-weight: 700 !important;
     font-size: clamp(0.78rem, 2.2vw, 0.88rem) !important;
-    min-height: 44px; /* tap target */
+    min-height: 44px;
+    color: var(--text) !important;
 }
-.stRadio label:hover { border-color: var(--accent1) !important; background: var(--surface2) !important; }
+.stRadio label:hover { border-color: var(--accent1) !important; background: var(--surface2) !important; color: white !important; }
+/* Radio option text (the <p> inside label) */
+.stRadio label p, .stRadio label span, .stRadio div[data-testid="stMarkdownContainer"] p {
+    color: var(--text) !important;
+    font-weight: 700 !important;
+}
+/* Selected radio option */
+.stRadio label[data-selected="true"], .stRadio input:checked + label {
+    border-color: var(--accent1) !important;
+    background: rgba(108,99,255,0.15) !important;
+    color: white !important;
+}
+/* Streamlit wraps radio text in this span */
+[data-testid="stWidgetLabel"] p,
+.stRadio [data-testid="stMarkdownContainer"] p {
+    color: var(--text) !important;
+}
 
 /* ---- BUTTONS ---- */
 .stButton > button {
@@ -391,12 +408,33 @@ div[data-testid="column"] .quick-tile-top + div .stButton > button:hover {
 }
 
 /* ---- LABELS ---- */
-.stSelectbox label, .stTextArea label {
+.stSelectbox label, .stTextArea label, .stRadio label > div,
+.stSlider label, .stSelectSlider label {
     color: var(--muted) !important;
     font-weight: 700 !important;
     font-size: 0.78rem !important;
     text-transform: uppercase !important;
     letter-spacing: 0.08em !important;
+}
+/* Select slider track labels & values */
+.stSelectSlider [data-testid="stTickBar"] span,
+.stSelectSlider [data-testid="stThumbValue"],
+.stSlider [data-testid="stTickBar"] span,
+.stSlider [data-testid="stThumbValue"] {
+    color: var(--text) !important;
+    font-weight: 700 !important;
+}
+/* Dropdown option items */
+[data-baseweb="option"] {
+    background-color: var(--surface) !important;
+    color: var(--text) !important;
+}
+[data-baseweb="option"]:hover {
+    background-color: var(--surface2) !important;
+}
+/* Any leftover p/span inside widgets that may be dark */
+.stForm p, .stForm span, .stForm div {
+    color: var(--text) !important;
 }
 
 /* ---- SUBJECT BANNER ---- */
